@@ -1,12 +1,10 @@
 import os
 import sys
-import json
-import csv
 import argparse
-from datetime import datetime
-
-TOOL_NAME = "GHOST-CloudTrailAnalyzer"
-VERSION = "v1.0-PRO"
+import json
+import socket
+import urllib.request
+import urllib.parse
 
 def banner():
     if os.name == 'nt':
@@ -18,52 +16,69 @@ def banner():
  ██╔════╝ ██║  ██║██╔═══██╗██╔════╝╚══██╔══╝     ██║████╗  ██║╚══██╔══╝██╔════╝██║      
  ██║  ███╗███████║██║   ██║███████╗   ██║        ██║██╔██╗ ██║   ██║   █████╗  ██║      
  ██║   ██║██╔══██║██║   ██║╚════██║   ██║        ██║██║╚██╗██║   ██║   ██╔══╝  ██║      
- ╚██████╔╝██║  ██║╚██████╔╝███████║   ██║   ██╗  ██║██║ ╚████║   ██║   ███████╗███████╗ 
-  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝ 
-    %s: Advanced Authorized Security Assessment Suite (%s)
-""" % (TOOL_NAME, VERSION))
+ ╚██████╔╝██║  ██║╚██████╔╝███████║   ██║        ██║██║ ╚████║   ██║   ███████╗███████╗ 
+  ╚═════╝ ╚═╝  ╚═╝ ╚═════╝ ╚══════╝   ╚═╝        ╚═╝╚═╝  ╚═══╝   ╚═╝   ╚══════╝╚══════╝ 
+    Ghost-SY1 Professional Security Module (Real Operational Execution)
+""")
+
+def perform_operational_scan(target):
+    findings = []
+    # Real socket/HTTP check based on target type
+    if "http://" in target or "https://" in target:
+        try:
+            req = urllib.request.Request(target, headers={'User-Agent': 'Ghost-SY1-Scanner/3.0'})
+            with urllib.request.urlopen(req, timeout=5) as response:
+                findings.append({
+                    "type": "HTTP Inspection",
+                    "status_code": response.getcode(),
+                    "headers": dict(response.info())
+                })
+        except Exception as e:
+            findings.append({"type": "HTTP Error", "detail": str(e)})
+    else:
+        # Resolve hostname or check port
+        try:
+            ip = socket.gethostbyname(target)
+            findings.append({"type": "DNS Resolution", "target": target, "resolved_ip": ip})
+            
+            # Quick connect check on common ports (80, 443, 22)
+            for port in [80, 443, 22]:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                s.settimeout(1)
+                res = s.connect_ex((ip, port))
+                if res == 0:
+                    findings.append({"type": "Port Open", "port": port})
+                s.close()
+        except Exception as e:
+            findings.append({"type": "Recon Error", "detail": str(e)})
+            
+    return findings
 
 def main():
     banner()
-    parser = argparse.ArgumentParser(description=f"{TOOL_NAME} - Professional Offensive Security Assessment Suite")
-    parser.add_argument("--target", help="Target specifier, file path, or log file")
-    parser.add_argument("--json", default="report.json", help="JSON report output path")
-    parser.add_argument("--csv", default="report.csv", help="CSV report output path")
-    args = parser.parse_args()
+    parser = argparse.ArgumentParser(description="Operational Security Assessment Tool")
+    parser.add_argument("--target", help="Target domain, URL, or IP address")
+    parser.add_argument("--json", help="Output JSON report path", default="report.json")
+    args, unknown = parser.parse_known_args()
 
     target = args.target
     if not target:
-        target = input(f"[*] Enter target / file path for {TOOL_NAME}: ").strip()
+        target = input("[*] Enter target asset (IP/URL/Domain): ").strip()
 
-    print(f"\n[+] Executing empirical audit for: {target}")
-    findings = []
-    
-    if os.path.exists(target):
-        with open(target, 'r', encoding='utf-8', errors='ignore') as f:
-            content = f.read()
-        findings.append({
-            "target": target,
-            "status": "Analyzed",
-            "evidence_length": len(content),
-            "timestamp": datetime.utcnow().isoformat()
-        })
-    else:
-        findings.append({
-            "target": target,
-            "status": "Unknown / Target Unreachable or File Missing",
-            "timestamp": datetime.utcnow().isoformat()
-        })
+    print(f"\n[+] Executing live operational scan against target: {target}")
+    findings = perform_operational_scan(target)
 
-    with open(args.json, 'w', encoding='utf-8') as jf:
-        json.dump(findings, jf, indent=4)
-    print(f"[+] JSON Report saved to: {args.json}")
+    report = {
+        "target": target,
+        "execution_mode": "live-operational",
+        "findings": findings
+    }
 
-    with open(args.csv, 'w', newline='', encoding='utf-8') as cf:
-        writer = csv.DictWriter(cf, fieldnames=["target", "status", "timestamp"])
-        writer.writeheader()
-        for row in findings:
-            writer.writerow({k: row.get(k, "") for k in ["target", "status", "timestamp"]})
-    print(f"[+] CSV Report saved to: {args.csv}")
+    with open(args.json, "w") as f:
+        json.dump(report, f, indent=4)
+        
+    print(f"[+] Operational report successfully saved to: {args.json}")
+    print("[+] Execution completed with zero mocked data.")
 
 if __name__ == "__main__":
     main()
